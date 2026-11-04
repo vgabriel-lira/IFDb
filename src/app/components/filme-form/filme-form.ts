@@ -12,38 +12,42 @@ import { Database } from '../../services/database';
 export class FilmeForm {
   public database = inject(Database);
 
+  // Propriedades do formulário
   public titulo: string = '';
   public genero: string = '';
-  public ano: number = new Date().getFullYear();
+  public ano: number | null = null;
   public sinopse: string = '';
   public imagemUrl: string = '';
 
-  async onSubmit(): Promise<void> {
-    if (!this.titulo || !this.genero || !this.ano) {
-      alert('Por favor, preencha o título, gênero e ano!');
+  // Alias para tratar (ngSubmit)="onSubmit()" do filme-form.html
+  onSubmit(): void {
+    this.salvarFilme();
+  }
+
+  async salvarFilme(): Promise<void> {
+    if (!this.titulo || (!this.sinopse && !this.sinopse)) {
+      alert('Por favor, preencha pelo menos o título e a descrição!');
       return;
     }
 
     const novoFilme = {
       titulo: this.titulo,
-      genero: this.genero,
-      ano: Number(this.ano),
+      descricao: this.sinopse,
       sinopse: this.sinopse,
+      categoria: this.genero || 'Geral',
+      genero: this.genero || 'Geral',
+      ano: this.ano ? Number(this.ano) : 2026,
       imagemUrl: this.imagemUrl
     };
 
-    const sucesso = await this.database.addFilmeSupabase(novoFilme);
-
-    if (sucesso) {
-      alert('Filme cadastrado com sucesso!');
-      this.limparFormulario();
-    }
+    await this.database.addFilmeSupabase(novoFilme);
+    this.limparFormulario();
   }
 
   limparFormulario(): void {
     this.titulo = '';
     this.genero = '';
-    this.ano = new Date().getFullYear();
+    this.ano = null;
     this.sinopse = '';
     this.imagemUrl = '';
   }
