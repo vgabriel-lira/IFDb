@@ -1,86 +1,89 @@
-<div class="bg-[#121212] border border-zinc-800 p-6 rounded-xl text-white max-w-xl mx-auto space-y-4 font-sans shadow-2xl">
-  <h2 class="text-xl font-bold text-amber-400 border-b border-zinc-800 pb-2 flex items-center gap-2">
-    <span class="bg-amber-400 w-1 h-5 inline-block rounded-sm"></span>
-    Cadastrar Novo Filme no IFDb
-  </h2>
-
-  <form (ngSubmit)="onSubmit()" class="space-y-4">
-    <div>
-      <label class="block text-xs font-semibold text-zinc-400 mb-1">Título do Filme</label>
-      <input 
-        type="text" 
-        name="titulo"
-        [(ngModel)]="titulo" 
-        placeholder="Ex: Pride and Prejudice"
-        required 
-        class="w-full bg-zinc-900 border border-zinc-700 rounded p-2.5 text-sm focus:outline-none focus:border-amber-400 text-white placeholder:text-zinc-500"
-      />
+<div class="min-h-screen bg-slate-950 px-4 py-10 font-sans text-slate-100">
+  <div class="mx-auto max-w-xl space-y-5 rounded-xl border border-zinc-800 bg-zinc-900/60 p-6 shadow-2xl">
+    <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
+      <h1 class="text-lg font-bold text-amber-400">Cadastrar novo filme</h1>
+      <a routerLink="/" class="text-xs text-zinc-400 hover:text-white">← Voltar</a>
     </div>
 
-    <div class="grid grid-cols-2 gap-4">
+    <form (ngSubmit)="salvarFilme()" class="space-y-4">
       <div>
-        <label class="block text-xs font-semibold text-zinc-400 mb-1">Gênero</label>
-        <input 
-          type="text" 
-          name="genero"
-          [(ngModel)]="genero" 
-          placeholder="Ex: Drama, Ação"
-          required 
-          class="w-full bg-zinc-900 border border-zinc-700 rounded p-2.5 text-sm focus:outline-none focus:border-amber-400 text-white placeholder:text-zinc-500"
+        <label class="mb-1 block text-xs font-semibold text-zinc-400">Título *</label>
+        <input
+          name="titulo"
+          [(ngModel)]="titulo"
+          required
+          placeholder="Ex: Pride and Prejudice"
+          class="w-full rounded border border-zinc-700 bg-zinc-950 p-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-amber-400 focus:outline-none"
+        />
+      </div>
+
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div>
+          <label class="mb-1 block text-xs font-semibold text-zinc-400">Gênero</label>
+          <input
+            name="genero"
+            [(ngModel)]="genero"
+            placeholder="Ex: Drama"
+            class="w-full rounded border border-zinc-700 bg-zinc-950 p-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-amber-400 focus:outline-none"
+          />
+        </div>
+
+        <div>
+          <label class="mb-1 block text-xs font-semibold text-zinc-400">Ano *</label>
+          <input
+            type="number"
+            name="ano"
+            [(ngModel)]="ano"
+            required
+            placeholder="Ex: 2005"
+            class="w-full rounded border border-zinc-700 bg-zinc-950 p-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-amber-400 focus:outline-none"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label class="mb-1 block text-xs font-semibold text-zinc-400">URL da capa</label>
+        <input
+          type="url"
+          name="imagemUrl"
+          [(ngModel)]="imagemUrl"
+          placeholder="https://..."
+          class="w-full rounded border border-zinc-700 bg-zinc-950 p-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-amber-400 focus:outline-none"
         />
       </div>
 
       <div>
-        <label class="block text-xs font-semibold text-zinc-400 mb-1">Ano de Lançamento</label>
-        <input 
-          type="number" 
-          name="ano"
-          [(ngModel)]="ano" 
-          placeholder="Ex: 2026"
-          required 
-          class="w-full bg-zinc-900 border border-zinc-700 rounded p-2.5 text-sm focus:outline-none focus:border-amber-400 text-white placeholder:text-zinc-500"
-        />
+        <label class="mb-1 block text-xs font-semibold text-zinc-400">Sinopse</label>
+        <textarea
+          name="sinopse"
+          [(ngModel)]="sinopse"
+          rows="4"
+          placeholder="Breve resumo da trama..."
+          class="w-full resize-none rounded border border-zinc-700 bg-zinc-950 p-2.5 text-sm text-white placeholder:text-zinc-600 focus:border-amber-400 focus:outline-none"
+        ></textarea>
       </div>
-    </div>
 
-    <div>
-      <label class="block text-xs font-semibold text-zinc-400 mb-1">URL da Capa / Poster (Opcional)</label>
-      <input 
-        type="url" 
-        name="imagemUrl"
-        [(ngModel)]="imagemUrl" 
-        placeholder="https://images.unsplash.com/..."
-        class="w-full bg-zinc-900 border border-zinc-700 rounded p-2.5 text-sm focus:outline-none focus:border-amber-400 text-white placeholder:text-zinc-500"
-      />
-    </div>
+      @if (erro()) {
+        <p class="rounded border border-red-800 bg-red-950/40 px-3 py-2 text-xs text-red-300">{{ erro() }}</p>
+      }
 
-    <div>
-      <label class="block text-xs font-semibold text-zinc-400 mb-1">Sinopse (Opcional)</label>
-      <textarea 
-        name="sinopse"
-        [(ngModel)]="sinopse" 
-        rows="3"
-        placeholder="Breve resumo da trama..."
-        class="w-full bg-zinc-900 border border-zinc-700 rounded p-2.5 text-sm focus:outline-none focus:border-amber-400 text-white placeholder:text-zinc-500 resize-none"
-      ></textarea>
-    </div>
+      <div class="flex gap-3 pt-2">
+        <button
+          type="submit"
+          [disabled]="database.isSaving()"
+          class="flex-1 rounded bg-amber-400 py-2.5 text-sm font-bold text-black transition-colors hover:bg-amber-300 disabled:opacity-50"
+        >
+          {{ database.isSaving() ? 'Salvando...' : 'Salvar no Supabase' }}
+        </button>
 
-    <div class="flex gap-3 pt-2">
-      <button 
-        type="submit" 
-        [disabled]="database.isSaving()"
-        class="flex-1 bg-amber-400 hover:bg-amber-300 disabled:opacity-50 text-black font-bold py-2.5 rounded text-sm transition-colors cursor-pointer"
-      >
-        {{ database.isSaving() ? 'A guardar...' : 'Salvar no Supabase' }}
-      </button>
-
-      <button 
-        type="button" 
-        (click)="limparFormulario()" 
-        class="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold px-4 py-2.5 rounded text-sm transition-colors cursor-pointer"
-      >
-        Limpar
-      </button>
-    </div>
-  </form>
+        <button
+          type="button"
+          (click)="limparFormulario()"
+          class="rounded border border-zinc-700 px-4 py-2.5 text-sm font-bold text-zinc-300 transition-colors hover:bg-zinc-800"
+        >
+          Limpar
+        </button>
+      </div>
+    </form>
+  </div>
 </div>

@@ -1,136 +1,161 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
 import { environment } from '../../environments/environment.development';
-import { Filme } from '../models/filme';
-
-export interface Cliente {
-  id?: number;
-  nome: string;
-  email: string;
-}
+import { Cliente, Filme } from '../models/filme';
 
 @Injectable({
   providedIn: 'root'
 })
 export class Database {
-  private http = inject(HttpClient);
+  private readonly http = inject(HttpClient);
+  private readonly storageKey = 'ifdb_usuario';
 
   public filmes = signal<Filme[]>([]);
+  public filmeSelecionado = signal<Filme | null>(null);
+  public carregandoFilme = signal<boolean>(false);
   public isSaving = signal<boolean>(false);
   public usuarioLogado = signal<Cliente | null>(null);
+  public isLoggedIn = computed(() => this.usuarioLogado() !== null);
 
   private get headers(): HttpHeaders {
     return new HttpHeaders({
-      'apikey': environment.supabaseKey,
-      'Authorization': `Bearer ${environment.supabaseKey}`,
+      apikey: environment.supabaseKey,
+      Authorization: `Bearer ${environment.supabaseKey}`,
       'Content-Type': 'application/json',
-      'Prefer': 'return=representation'
+      Prefer: 'return=representation'
     });
   }
 
   constructor() {
+    this.restaurarSessao();
     this.carregarFilmes();
   }
 
-  carregarFilmes(): void {
-    const url = `${environment.supabaseRestUrl}/filmes?select=*`;
-    this.http.get<Filme[]>(url, { headers: this.headers }).subscribe({
-      next: (dados) => this.filmes.set(dados),
-      error: (err) => console.error('Erro GET filmes:', err)
-    });
+  private restaurarSessao(): void {
+    try {
+      const salvo = localStorage.getItem(this.storageKey);
+      if (salvo) {
+        this.usuarioLogado.set(JSON.parse(salvo) as Cliente);
+      }
+    } catch {
+      localStorage.removeItem(this.storageKey);
+    }
   }
 
-  addFilmeSupabase(novoFilme: Omit<Filme, 'id'>): Promise<boolean> {
+  async cadastrarCliente(cliente: { nome: string; email: string; pass: string }): Promise<boolean> {
     this.isSaving.set(true);
-    const url = `${environment.supabaseRestUrl}/filmes`;
-
-    return new Promise((resolve) => {
-      this.http.post<Filme[]>(url, novoFilme, { headers: this.headers }).subscribe({
-        next: (resposta) => {
-          if (resposta && resposta.length > 0) {
-            this.filmes.update((lista) => [...lista, resposta[0]]);
-          } else {
-            this.carregarFilmes();
-          }
-          this.isSaving.set(false);
-          resolve(true);
-        },
-        error: (err) => {
-          console.error('Erro POST filme:', err);
-          this.isSaving.set(false);
-          resolve(false);
-        }
-      });
-    });
+    try {
+      await firstValueFrom(
+        this.http.post(
+          `${environment.supabaseRestUrl}/clientes`,
+          {
+            nome: cliente.nome.trim(),
+            email: cliente.email.trim().toLowerCase(),
+            senha: cliente.pass
+          },
+          { headers: this.headers }
+        )
+      );
+      return true;
+    } catch (err) {
+      console.error('Erro POST cliente:', err);
+      return false;
+    } finally {
+      this.isSaving.set(false);
+    }
   }
 
-  deleteFilmeSupabase(id: number): void {
-    const url = `${environment.supabaseRestUrl}/filmes?id=eq.${id}`;
-    this.http.delete(url, { headers: this.headers }).subscribe({
-      next: () => this.filmes.update((lista) => lista.filter((f) => f.id !== id)),
-      error: (err) => console.error('Erro DELETE filme:', err)
-    });
-  }
-
-  cadastrarCliente(cliente: { nome: string; email: string; pass: string }): Promise<boolean> {
+  async fazerLogin(credenciais: { email: string; pass: string }): Promise<boolean> {
     this.isSaving.set(true);
-    const url = `${environment.supabaseRestUrl}/clientes`;
+    try {
+      const email = credenciais.email.trim().toLowerCase();
+      const url =
+        `${environment.supabaseRestUrl}/clientes` +
+        `?email=ilike.${encodeURIComponent(email)}` +
+        `&senha=eq.${encodeURIComponent(credenciais.pass)}` +
+        `&select=id,nome,email`;
 
-    const payload = {
-      nome: cliente.nome,
-      email: cliente.email.trim().toLowerCase(),
-      senha: cliente.pass
-    };
+      const resultado = await firstValueFrom(this.http.get<Cliente[]>(url, { headers: this.headers }));
+      const cliente = resultado?.[0];
+      if (!cliente) {
+        return false;
+      }
 
-    return new Promise((resolve) => {
-      this.http.post(url, payload, { headers: this.headers }).subscribe({
-        next: () => {
-          alert('Conta criada com sucesso! Faça login para continuar.');
-          this.isSaving.set(false);
-          resolve(true);
-        },
-        error: (err) => {
-          alert('Erro ao criar conta: ' + (err.error?.message || err.message));
-          this.isSaving.set(false);
-          resolve(false);
-        }
-      });
-    });
-  }
-
-  fazerLogin(credenciais: { email: string; pass: string }): Promise<boolean> {
-    this.isSaving.set(true);
-    const emailFmt = credenciais.email.trim().toLowerCase();
-    const url = `${environment.supabaseRestUrl}/clientes?email=ilike.${encodeURIComponent(emailFmt)}&senha=eq.${encodeURIComponent(credenciais.pass)}&select=*`;
-
-    return new Promise((resolve) => {
-      this.http.get<any[]>(url, { headers: this.headers }).subscribe({
-        next: (resultado) => {
-          this.isSaving.set(false);
-          if (resultado && resultado.length > 0) {
-            const cliente = resultado[0];
-            this.usuarioLogado.set({
-              id: cliente.id,
-              nome: cliente.nome,
-              email: cliente.email
-            });
-            alert(`Bem-vindo(a), ${cliente.nome}!`);
-            resolve(true);
-          } else {
-            alert('E-mail ou palavra-passe incorretos.');
-            resolve(false);
-          }
-        },
-        error: (err) => {
-          console.error('Erro no login:', err);
-          this.isSaving.set(false);
-          resolve(false);
-        }
-      });
-    });
+      this.usuarioLogado.set(cliente);
+      localStorage.setItem(this.storageKey, JSON.stringify(cliente));
+      return true;
+    } catch (err) {
+      console.error('Erro GET login:', err);
+      return false;
+    } finally {
+      this.isSaving.set(false);
+    }
   }
 
   logout(): void {
     this.usuarioLogado.set(null);
+    localStorage.removeItem(this.storageKey);
+  }
+
+  carregarFilmes(): void {
+    this.http
+      .get<Filme[]>(`${environment.supabaseRestUrl}/filmes?select=*`, { headers: this.headers })
+      .subscribe({
+        next: (dados) => this.filmes.set(dados),
+        error: (err) => console.error('Erro GET filmes:', err)
+      });
+  }
+
+  carregarFilme(id: number): void {
+    this.carregandoFilme.set(true);
+    this.filmeSelecionado.set(null);
+
+    this.http
+      .get<Filme[]>(`${environment.supabaseRestUrl}/filmes?id=eq.${id}&select=*`, { headers: this.headers })
+      .subscribe({
+        next: (dados) => {
+          this.filmeSelecionado.set(dados?.[0] ?? null);
+          this.carregandoFilme.set(false);
+        },
+        error: (err) => {
+          console.error('Erro GET filme:', err);
+          this.carregandoFilme.set(false);
+        }
+      });
+  }
+
+  async addFilmeSupabase(novoFilme: Omit<Filme, 'id'>): Promise<boolean> {
+    this.isSaving.set(true);
+    try {
+      const resposta = await firstValueFrom(
+        this.http.post<Filme[]>(`${environment.supabaseRestUrl}/filmes`, novoFilme, { headers: this.headers })
+      );
+
+      if (resposta?.[0]) {
+        this.filmes.update((lista) => [...lista, resposta[0]]);
+      } else {
+        this.carregarFilmes();
+      }
+      return true;
+    } catch (err) {
+      console.error('Erro POST filme:', err);
+      return false;
+    } finally {
+      this.isSaving.set(false);
+    }
+  }
+
+  async deleteFilmeSupabase(id: number): Promise<boolean> {
+    try {
+      await firstValueFrom(
+        this.http.delete(`${environment.supabaseRestUrl}/filmes?id=eq.${id}`, { headers: this.headers })
+      );
+      this.filmes.update((lista) => lista.filter((filme) => filme.id !== id));
+      return true;
+    } catch (err) {
+      console.error('Erro DELETE filme:', err);
+      return false;
+    }
   }
 }

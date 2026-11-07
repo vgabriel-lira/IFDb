@@ -1,47 +1,53 @@
-import { Component, inject } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Router, RouterLink } from '@angular/router';
 import { Database } from '../../services/database';
 
 @Component({
   selector: 'app-filme-form',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule, RouterLink],
   templateUrl: './filme-form.html'
 })
 export class FilmeForm {
   public database = inject(Database);
+  private router = inject(Router);
 
-  // Propriedades do formulário
-  public titulo: string = '';
-  public genero: string = '';
+  public titulo = '';
+  public genero = '';
   public ano: number | null = null;
-  public sinopse: string = '';
-  public imagemUrl: string = '';
-
-  // Alias para tratar (ngSubmit)="onSubmit()" do filme-form.html
-  onSubmit(): void {
-    this.salvarFilme();
-  }
+  public sinopse = '';
+  public imagemUrl = '';
+  public erro = signal('');
 
   async salvarFilme(): Promise<void> {
-    if (!this.titulo || (!this.sinopse && !this.sinopse)) {
-      alert('Por favor, preencha pelo menos o título e a descrição!');
+    this.erro.set('');
+
+    if (!this.titulo.trim()) {
+      this.erro.set('Informe o título do filme.');
+      return;
+    }
+
+    if (!this.ano) {
+      this.erro.set('Informe o ano de lançamento.');
       return;
     }
 
     const novoFilme = {
-      titulo: this.titulo,
-      descricao: this.sinopse,
-      sinopse: this.sinopse,
-      categoria: this.genero || 'Geral',
-      genero: this.genero || 'Geral',
-      ano: this.ano ? Number(this.ano) : 2026,
-      imagemUrl: this.imagemUrl
+      titulo: this.titulo.trim(),
+      genero: this.genero.trim() || 'Geral',
+      ano: Number(this.ano),
+      sinopse: this.sinopse.trim(),
+      imagemUrl: this.imagemUrl.trim()
     };
 
-    await this.database.addFilmeSupabase(novoFilme);
-    this.limparFormulario();
+    const sucesso = await this.database.addFilmeSupabase(novoFilme);
+
+    if (sucesso) {
+      this.router.navigate(['/']);
+    } else {
+      this.erro.set('Não foi possível salvar o filme. Tente novamente.');
+    }
   }
 
   limparFormulario(): void {
@@ -50,5 +56,6 @@ export class FilmeForm {
     this.ano = null;
     this.sinopse = '';
     this.imagemUrl = '';
+    this.erro.set('');
   }
 }
