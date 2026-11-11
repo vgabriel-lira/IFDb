@@ -1,5 +1,5 @@
 import { NgClass } from '@angular/common';
-import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { Database } from '../../services/database';
 import { FilmeCard } from '../filme-card/filme-card';
@@ -16,28 +16,7 @@ export class FilmeList {
 
   public categoriaSelecionada = signal('Todos');
   public busca = signal('');
-  public destaques = computed(() => this.database.filmes().slice(0, 3));
-  public indiceDestaque = signal(0);
-
-  public indiceAtual = computed(() => {
-    const total = this.destaques().length;
-    if (total === 0) {
-      return 0;
-    }
-    return ((this.indiceDestaque() % total) + total) % total;
-  });
-
-  private readonly destroyRef = inject(DestroyRef);
-
-  constructor() {
-    const timer = setInterval(() => {
-      if (this.destaques().length > 1) {
-        this.indiceDestaque.update((indice) => indice + 1);
-      }
-    }, 5000);
-
-    this.destroyRef.onDestroy(() => clearInterval(timer));
-  }
+  public destaque = computed(() => this.database.filmes()[0] ?? null);
 
   public categorias = computed(() => {
     const nomes = new Set<string>();
@@ -78,22 +57,6 @@ export class FilmeList {
   limparFiltros(): void {
     this.busca.set('');
     this.categoriaSelecionada.set('Todos');
-  }
-
-  irParaDestaque(indice: number): void {
-    this.indiceDestaque.set(indice);
-  }
-
-  proximoDestaque(): void {
-    if (this.destaques().length > 1) {
-      this.indiceDestaque.update((indice) => indice + 1);
-    }
-  }
-
-  anteriorDestaque(): void {
-    if (this.destaques().length > 1) {
-      this.indiceDestaque.update((indice) => indice - 1);
-    }
   }
 
   irParaTopo(): void {
